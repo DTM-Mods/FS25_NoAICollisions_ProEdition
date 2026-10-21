@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="92">
+    <author>PropaineX</author>
+    <version>1.3.4.0</version>
+
+    <title>
+        <en>No AI Collisions Pro Edition</en>
+    </title>
+
+    <description>
+        <en><![CDATA[Never get stuck in AI traffic again!
+
+- AI traffic behaves just like in the base game: it stops and waits for you, and moving cars are solid.
+- Any traffic car that stands still near one of your vehicles for a couple of seconds becomes pass-through, so you can drive straight through it instead of getting jammed up.
+- The car turns solid again once it drives off and is clear of your vehicles.
+- Helpers (base game, AutoDrive and Courseplay) that are stopped by an obstruction for 2 seconds turn off collisions with it and continue on their course, driving forwards or reversing - whether it's an AI traffic car, a parked vehicle or your own vehicle.
+- Two helpers that bump into each other or block each other drive through each other after 2 seconds, even when only one of them can see the other. A helper waiting its turn with a gap, like trucks queueing at an unload point, is never pushed into. A helper that faces the other one or crosses its path, like an unloader waiting in the field, is driven through.
+- Collisions are turned back on as soon as the helper has cleared the obstruction.
+- Works for you and your helpers, in single player and multiplayer.
+- No settings needed - just activate the mod.]]></en>
+    </description>
+
+    <iconFilename>icon_NoAICollisions.dds</iconFilename>
+    <multiplayer supported="true" />
+
+    <extraSourceFiles>
+        <sourceFile filename="scripts/NoAICollisions.lua" />
+    </extraSourceFiles>
+</modDesc>
