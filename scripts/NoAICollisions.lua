@@ -38,6 +38,9 @@
 --     one facing it or crossing its path (an unloader waiting in the field
 --     for its combine) or in the next lane (side by side leaving a two-lane
 --     silo) is driven through after BLOCK_TIME.
+--     Two AutoDrive helpers driving to the same map pin always queue: the one
+--     further from the pin (along its route) waits for the other, even when
+--     they touch or stand at an angle. The one ahead follows the rules above.
 --       - world objects (trees, buildings, walls, static and dynamic objects
 --         such as bales) get their flags taken out of the collision mask of
 --         every shape and wheel of the helper, so it passes through all of
@@ -46,6 +49,9 @@
 --     STUCK_TIME (a trailer caught on a wall in a corner, which its sensors
 --     don't see) counts as stopped too, so it drives through what it is
 --     pressed against.
+--   * The helper's load (pallets, bales, logs strapped down, loaded by an
+--     autoloader, mounted on it or standing in it) drives through along with
+--     it, and never counts as something in its own path.
 --   * Nothing physical found in the path (an AutoDrive route yield) means the
 --     helper waits as it normally would.
 --   * Collisions are switched back on once the helper and the obstruction are
@@ -76,6 +82,7 @@ NoAICollisions.QUEUE_ANGLE_COS = math.cos(math.rad(45)) -- a helper ahead counts
 NoAICollisions.WORLD_PROBE_LIFT = 0.5 -- m above each unit's root where the world object checks start, so the ground under it doesn't count
 NoAICollisions.STUCK_TIME = 2000     -- ms an AutoDrive helper that wants to drive may stand still before it counts as stopped
 NoAICollisions.STUCK_SPEED = 0.5     -- km/h below which it counts as standing still
+NoAICollisions.SAME_DESTINATION_TIE = 0.5 -- m: two helpers this close to the same distance from their pin count as level
 
 NoAICollisions.tracked = {}          -- traffic shape node -> { x, y, z, stoppedTime, lastSeen }
 NoAICollisions.ghosted = {}          -- traffic shape node -> original collision mask
@@ -209,6 +216,109 @@ local function getChildVehicles(rootVehicle)
     return { rootVehicle }
 end
 
+-- A pallet whose center lies over one of the units, at most 1 m below its
+-- root and 5 m above it (in a box truck or on a flatbed without straps)
+local function isStandingOn(vehicle, units)
+    local x, y, z = getVehicleCenter(vehicle)
+    if x == nil then
+        return false
+    end
+    for unit in pairs(units) do
+        local node = unit.components ~= nil and unit.components[1] ~= nil and unit.components[1].node or nil
+        if node ~= nil and entityExists(node) and unit.size ~= nil then
+            local size = unit.size
+            local lx, ly, lz = worldToLocal(node, x, y, z)
+            if math.abs(lx - (size.widthOffset or 0)) < (size.width or 3) * 0.5
+                and math.abs(lz - (size.lengthOffset or 0)) < (size.length or 4) * 0.5
+                and ly > -1 and ly < 5 then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- The load a vehicle carries: objects strapped down with tension belts,
+-- loaded by Universal Autoload or a dynamic mount attacher, mounted on it
+-- (kinematic or dynamic), and pallets standing in it. Returns object -> true
+-- and physics node -> true (every component of those objects, and strapped
+-- logs that have no object).
+function NoAICollisions:getCargo(rootVehicle)
+    local units, objects, nodes = {}, {}, {}
+    for _, unit in ipairs(getChildVehicles(rootVehicle)) do
+        units[unit] = true
+    end
+    local function addObject(object)
+        if type(object) ~= "table" or objects[object] or units[object] or object.isDeleted then
+            return
+        end
+        objects[object] = true
+        if object.components ~= nil then
+            for _, component in ipairs(object.components) do
+                if component.node ~= nil then
+                    nodes[component.node] = true
+                end
+            end
+        elseif object.nodeId ~= nil and object.nodeId ~= 0 then
+            nodes[object.nodeId] = true
+        end
+    end
+    for unit in pairs(units) do
+        local belts = unit.spec_tensionBelts
+        if belts ~= nil and belts.objectsToJoint ~= nil then
+            for node, data in pairs(belts.objectsToJoint) do
+                if type(data) == "table" and data.object ~= nil then
+                    addObject(data.object)
+                elseif type(node) == "number" then
+                    nodes[node] = true
+                end
+            end
+        end
+        local autoload = unit.spec_universalAutoload
+        if autoload ~= nil and type(autoload.loadedObjects) == "table" then
+            for object in pairs(autoload.loadedObjects) do
+                addObject(object)
+            end
+        end
+        local attacher = unit.spec_dynamicMountAttacher
+        if attacher ~= nil and attacher.dynamicMountedObjects ~= nil then
+            for object in pairs(attacher.dynamicMountedObjects) do
+                addObject(object)
+            end
+        end
+    end
+    for _, vehicle in pairs(self:getVehicles()) do
+        if not units[vehicle] and not objects[vehicle] and not vehicle.isDeleted
+            and (vehicle.rootVehicle == nil or vehicle.rootVehicle == vehicle) and not isVehicleActive(vehicle) then
+            local mount = vehicle.getDynamicMountObject ~= nil and vehicle:getDynamicMountObject() or nil
+            if (mount ~= nil and units[mount]) or (vehicle.spec_pallet ~= nil and isStandingOn(vehicle, units)) then
+                addObject(vehicle)
+            end
+        end
+    end
+    return objects, nodes
+end
+
+-- Every rigid body that moves with a vehicle: its components, those of its
+-- implements and trailers, and its load
+function NoAICollisions:getBodyNodes(rootVehicle)
+    local list = {}
+    for _, vehicle in ipairs(getChildVehicles(rootVehicle)) do
+        if vehicle.components ~= nil then
+            for _, component in ipairs(vehicle.components) do
+                if component.node ~= nil then
+                    table.insert(list, component.node)
+                end
+            end
+        end
+    end
+    local _, cargoNodes = self:getCargo(rootVehicle)
+    for node in pairs(cargoNodes) do
+        table.insert(list, node)
+    end
+    return list
+end
+
 function NoAICollisions:update(dt)
     if not self.isReady or g_currentMission == nil then
         return
@@ -336,31 +446,38 @@ local function getPairKey(node1, node2)
 end
 
 -- Disables collision between every component of the helper and every
--- component of the other vehicle. Returns the node pairs so they can be
--- restored later, even if implements get attached or detached meanwhile.
+-- component of the other vehicle, the loads of both included. Returns the
+-- node pairs so they can be restored later, even if implements get attached
+-- or detached or the load changes meanwhile.
 function NoAICollisions:disablePairCollision(rootA, rootB)
     local nodePairs = {}
-    for _, a in ipairs(getChildVehicles(rootA)) do
-        for _, b in ipairs(getChildVehicles(rootB)) do
-            if a.components ~= nil and b.components ~= nil then
-                for _, ca in ipairs(a.components) do
-                    for _, cb in ipairs(b.components) do
-                        local n1, n2 = ca.node, cb.node
-                        if n1 ~= nil and n2 ~= nil and entityExists(n1) and entityExists(n2) then
-                            local key = getPairKey(n1, n2)
-                            local count = self.pairGhosts[key] or 0
-                            if count == 0 then
-                                setPairCollision(n1, n2, false)
-                            end
-                            self.pairGhosts[key] = count + 1
-                            table.insert(nodePairs, { n1, n2, key })
-                        end
-                    end
+    local nodesB = self:getBodyNodes(rootB)
+    for _, n1 in ipairs(self:getBodyNodes(rootA)) do
+        for _, n2 in ipairs(nodesB) do
+            if n1 ~= n2 and entityExists(n1) and entityExists(n2) then
+                local key = getPairKey(n1, n2)
+                local count = self.pairGhosts[key] or 0
+                if count == 0 then
+                    setPairCollision(n1, n2, false)
                 end
+                self.pairGhosts[key] = count + 1
+                table.insert(nodePairs, { n1, n2, key })
             end
         end
     end
     return nodePairs
+end
+
+-- Two vehicles in the same jam (neither of them the helper) stop colliding
+-- with each other until they are clear
+function NoAICollisions:disableGroupPair(state, a, b)
+    if a == b or a.isDeleted or b.isDeleted then
+        return
+    end
+    local key = tostring(a) < tostring(b) and (tostring(a) .. "|" .. tostring(b)) or (tostring(b) .. "|" .. tostring(a))
+    if state.groupPairs[key] == nil then
+        state.groupPairs[key] = { a = a, b = b, nodePairs = self:disablePairCollision(a, b) }
+    end
 end
 
 function NoAICollisions:restorePairCollision(nodePairs)
@@ -459,9 +576,9 @@ end
 -- and dynamic objects)
 --
 
--- Takes the world flags out of every collision shape of the helper and its
--- implements. Triggers are left alone so unload and fill triggers still work.
--- Returns shape node -> original mask.
+-- Takes the world flags out of every collision shape of the helper, its
+-- implements and its load. Triggers are left alone so unload and fill
+-- triggers still work. Returns shape node -> original mask.
 function NoAICollisions:disableWorldCollision(rootVehicle)
     local shapes = {}
     local function walk(node)
@@ -489,6 +606,12 @@ function NoAICollisions:disableWorldCollision(rootVehicle)
                     walk(component.node)
                 end
             end
+        end
+    end
+    local _, cargoNodes = self:getCargo(rootVehicle)
+    for node in pairs(cargoNodes) do
+        if entityExists(node) then
+            walk(node)
         end
     end
     return shapes
@@ -543,12 +666,24 @@ function AIState.new(rootVehicle)
     state.contacts = {}        -- game root vehicle -> last time it was touching the helper
     state.ghostedVehicles = {} -- game root vehicle -> node pairs with collision disabled
     state.ghostedWheels = nil  -- helper wheels not touching vehicles, while any vehicle is ghosted
+    state.otherWheels = {}     -- game root vehicle in the jam -> its wheels not touching vehicles
+    state.groupPairs = {}      -- pair key -> { a, b, nodePairs } for two vehicles in the jam other than the helper
     state.world = nil          -- last time a world object was in the helper's path
     state.worldContact = nil   -- last time a world object was touching the helper
     state.worldChecks = 0      -- contact checks sent since the world was ghosted
     state.ghostedWorld = nil   -- helper shape node -> original mask, while driving through world objects
     state.ghostedWorldWheels = nil
+    state.cargo = {}           -- objects the helper carries, refreshed with every probe
+    state.cargoNodes = {}      -- their physics nodes
     return state
+end
+
+-- Part of the helper's own load, which moves with it and is never in its way
+function AIState:isCargo(node, object)
+    if self.cargoNodes[node] then
+        return true
+    end
+    return object ~= nil and (self.cargo[object] or (object.rootVehicle ~= nil and self.cargo[object.rootVehicle])) == true
 end
 
 -- World objects: trees, buildings, static and dynamic objects. Parts of game
@@ -558,6 +693,9 @@ function AIState:onWorldHit(node)
         return true
     end
     local object = g_currentMission:getNodeObject(node)
+    if self:isCargo(node, object) then
+        return true
+    end
     if object ~= nil and object.rootVehicle ~= nil then
         local rootVehicle = object.rootVehicle
         if rootVehicle ~= self.rootVehicle and not rootVehicle.isDeleted then
@@ -574,7 +712,7 @@ function AIState:onWorldContact(node)
         return true
     end
     local object = g_currentMission:getNodeObject(node)
-    if object ~= nil and object.rootVehicle ~= nil then
+    if self:isCargo(node, object) or (object ~= nil and object.rootVehicle ~= nil) then
         return true
     end
     self.worldContact = g_time
@@ -586,6 +724,9 @@ function AIState:onContactHit(node)
         return true
     end
     local object = g_currentMission:getNodeObject(node)
+    if self:isCargo(node, object) then
+        return true
+    end
     local rootVehicle = object ~= nil and object.rootVehicle or nil
     if rootVehicle ~= nil and rootVehicle ~= self.rootVehicle and not rootVehicle.isDeleted then
         self.contacts[rootVehicle] = g_time
@@ -600,6 +741,9 @@ function AIState:onProbeHit(node)
 
     -- Game vehicles have a node object with a root vehicle; traffic cars don't
     local object = g_currentMission:getNodeObject(node)
+    if self:isCargo(node, object) then
+        return true
+    end
     if object ~= nil and object.rootVehicle ~= nil then
         local rootVehicle = object.rootVehicle
         if rootVehicle ~= self.rootVehicle and not rootVehicle.isDeleted then
@@ -622,6 +766,8 @@ end
 -- Box covering every unit of the helper plus PROBE_LENGTH in its driving
 -- direction, so something it has already partly driven into still counts.
 function NoAICollisions:probeHelperPath(state, moveForwards)
+    -- Results arrive later, so the load is known by the time they come in
+    state.cargo, state.cargoNodes = self:getCargo(state.rootVehicle)
     local direction = moveForwards and 1 or -1
     for _, vehicle in ipairs(getChildVehicles(state.rootVehicle)) do
         local node = vehicle.components ~= nil and vehicle.components[1] ~= nil and vehicle.components[1].node or nil
@@ -654,6 +800,7 @@ end
 -- Box around each unit of the helper (above the ground): anything in it is a
 -- world object the helper is still inside
 function NoAICollisions:probeWorldContact(state)
+    state.cargo, state.cargoNodes = self:getCargo(state.rootVehicle)
     local lift = self.WORLD_PROBE_LIFT
     for _, vehicle in ipairs(getChildVehicles(state.rootVehicle)) do
         local node = vehicle.components ~= nil and vehicle.components[1] ~= nil and vehicle.components[1].node or nil
@@ -729,12 +876,66 @@ function NoAICollisions:isQueuedBehind(state, otherVehicle)
     return self:isInSameLane(state.rootVehicle, otherVehicle)
 end
 
+-- The map pin an AutoDrive helper is driving to (the last point of its route,
+-- also while it stands there unloading) and how far it still has to go along
+-- the route. nil when it isn't driving an AutoDrive route.
+local function getADDestination(vehicle)
+    local ad = vehicle.ad
+    if ad == nil or ad.stateModule == nil or ad.drivePathModule == nil or not ad.stateModule:isActive() then
+        return nil
+    end
+    local wayPoints, index = ad.drivePathModule:getWayPoints()
+    local last = wayPoints ~= nil and wayPoints[#wayPoints] or nil
+    if last == nil or last.id == nil or last.x == nil or last.z == nil then
+        return nil
+    end
+    local x, _, z = getVehiclePosition(vehicle)
+    if x == nil then
+        return nil
+    end
+    local current = index ~= nil and wayPoints[index] or nil
+    if current == nil or current.x == nil or current.z == nil then
+        return last.id, MathUtil.vector2Length(last.x - x, last.z - z)
+    end
+    local distance = MathUtil.vector2Length(current.x - x, current.z - z)
+    for i = index, #wayPoints - 1 do
+        local a, b = wayPoints[i], wayPoints[i + 1]
+        if a.x ~= nil and b.x ~= nil then
+            distance = distance + MathUtil.vector2Length(b.x - a.x, b.z - a.z)
+        end
+    end
+    return last.id, distance
+end
+
+-- Both helpers are AutoDrive helpers driving to the same map pin and this one
+-- is further from it, so it is behind in the line and waits its turn. Level
+-- ones are put in a fixed order so exactly one of them waits.
+function NoAICollisions:isBehindOnSameDestination(rootVehicle, otherVehicle)
+    local ownPin, ownDistance = getADDestination(rootVehicle)
+    if ownPin == nil then
+        return false
+    end
+    local otherPin, otherDistance = getADDestination(otherVehicle)
+    if otherPin ~= ownPin then
+        return false
+    end
+    if math.abs(ownDistance - otherDistance) > self.SAME_DESTINATION_TIE then
+        return ownDistance > otherDistance
+    end
+    return tostring(rootVehicle) > tostring(otherVehicle)
+end
+
 -- Another helper is only driven through when it is stopped by us too. One that
 -- is waiting for something else (its turn at an unload point, a route yield,
 -- a different obstacle) must not be pushed into.
 function NoAICollisions:isWaitingHelper(state, otherVehicle)
     if not isHelperActive(otherVehicle) then
         return false
+    end
+    -- Going to the same pin and the other one is ahead: wait in line, whatever
+    -- the angle and even when touching
+    if self:isBehindOnSameDestination(state.rootVehicle, otherVehicle) then
+        return true
     end
     -- Touching means they bumped: whatever the other one is doing, it can't
     -- get free on its own
@@ -787,6 +988,11 @@ function NoAICollisions:getPathStatus(state)
                 if self:isWaitingHelper(state, rootVehicle) then
                     hasWaitingHelper = true
                 end
+            elseif isHelperActive(rootVehicle) and self:isBehindOnSameDestination(state.rootVehicle, rootVehicle) then
+                -- Already partly inside a helper that is ahead on the way to
+                -- the same pin: stop and let it go first
+                allGhosted = false
+                hasWaitingHelper = true
             end
         end
     end
@@ -823,7 +1029,15 @@ function NoAICollisions:ghostPath(state)
         for rootVehicle, lastSeen in pairs(state.vehicles) do
             if g_time - lastSeen <= self.SEEN_TIMEOUT and not rootVehicle.isDeleted
                 and state.ghostedVehicles[rootVehicle] == nil then
+                -- Everyone already in the jam goes collision free with the newcomer too
+                for other, _ in pairs(state.ghostedVehicles) do
+                    self:disableGroupPair(state, rootVehicle, other)
+                end
                 state.ghostedVehicles[rootVehicle] = self:disablePairCollision(state.rootVehicle, rootVehicle)
+                -- Its wheels too, or they stay solid against the helper's body
+                if self.canIgnoreWheels and state.otherWheels[rootVehicle] == nil then
+                    state.otherWheels[rootVehicle] = self:disableWheelCollision(rootVehicle, "noAICollisionsVehicleCount")
+                end
             end
         end
         if self.canIgnoreWheels and state.ghostedWheels == nil and next(state.ghostedVehicles) ~= nil then
@@ -950,6 +1164,38 @@ function NoAICollisions:restoreClearedVehicles(state)
             state.ghostedVehicles[otherVehicle] = nil
         end
     end
+
+    -- Two others in the jam collide again once neither is ghosted with the
+    -- helper any more and they are clear of each other
+    for key, group in pairs(state.groupPairs) do
+        local a, b = group.a, group.b
+        local release = a.isDeleted or b.isDeleted
+        if not release and state.ghostedVehicles[a] == nil and state.ghostedVehicles[b] == nil then
+            release = not self:areVehiclesOverlapping(a, b)
+        end
+        if release then
+            self:restorePairCollision(group.nodePairs)
+            state.groupPairs[key] = nil
+        end
+    end
+
+    -- A vehicle's wheels turn solid again once it is out of the jam entirely
+    for vehicle, wheels in pairs(state.otherWheels) do
+        local inJam = not vehicle.isDeleted and state.ghostedVehicles[vehicle] ~= nil
+        if not inJam and not vehicle.isDeleted then
+            for _, group in pairs(state.groupPairs) do
+                if group.a == vehicle or group.b == vehicle then
+                    inJam = true
+                    break
+                end
+            end
+        end
+        if not inJam then
+            self:restoreWheelCollision(wheels, "noAICollisionsVehicleCount")
+            state.otherWheels[vehicle] = nil
+        end
+    end
+
     if state.ghostedWheels ~= nil and next(state.ghostedVehicles) == nil then
         self:restoreWheelCollision(state.ghostedWheels, "noAICollisionsVehicleCount")
         state.ghostedWheels = nil
@@ -986,7 +1232,7 @@ function NoAICollisions:updateHelpers()
         self:restoreClearedVehicles(state)
         self:restoreClearedWorld(state)
         if (rootVehicle.isDeleted or g_time - state.lastCall > 10000) and next(state.ghostedVehicles) == nil
-            and state.ghostedWorld == nil then
+            and next(state.groupPairs) == nil and next(state.otherWheels) == nil and state.ghostedWorld == nil then
             self.aiStates[rootVehicle] = nil
         end
     end

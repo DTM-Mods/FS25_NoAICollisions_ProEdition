@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="92">
     <author>PropaineX</author>
-    <version>1.3.4.0</version>
+    <version>1.4.1.0</version>
 
     <title>
         <en>No AI Collisions Pro Edition</en>
@@ -15,6 +15,8 @@
 - The car turns solid again once it drives off and is clear of your vehicles.
 - Helpers (base game, AutoDrive and Courseplay) that are stopped by an obstruction for 2 seconds turn off collisions with it and continue on their course, driving forwards or reversing - whether it's an AI traffic car, a parked vehicle or your own vehicle.
 - Two helpers that bump into each other or block each other drive through each other after 2 seconds, even when only one of them can see the other. A helper waiting its turn with a gap, like trucks queueing at an unload point, is never pushed into. A helper that faces the other one or crosses its path, like an unloader waiting in the field, is driven through.
+- AutoDrive helpers going to the same destination wait in line for their turn and never drive into each other: the one further from the destination waits until the one ahead has moved on.
+- A helper's load drives through along with it: pallets, bales and logs on a truck or trailer (strapped down, loaded by an autoloader or just standing in it) never push the other vehicle.
 - Collisions are turned back on as soon as the helper has cleared the obstruction.
 - Works for you and your helpers, in single player and multiplayer.
 - No settings needed - just activate the mod.]]></en>
