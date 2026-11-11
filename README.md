@@ -37,25 +37,32 @@ drive through each other, but a helper queueing with a gap is never pushed into.
 as the obstruction is cleared. Works in single player and multiplayer, no settings needed.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/files.jpg" alt="Files" width="100%">
-</p>
-
-- `modDesc.xml` - mod description
-- `scripts/NoAICollisions.lua` - traffic pass-through and helper unblocking
-- `icon_NoAICollisions.dds` - shop icon
-
-<p align="center">
   <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/installation.jpg" alt="Installation" width="100%">
 </p>
 
-Zip the CONTENTS of this folder (modDesc.xml at the top of the zip, forward-slash paths) as
-`FS25_NoAICollisions_ProEdition.zip` and put it in the FS25 `mods` folder. Don't rename the zip.
+Download `FS25_NoAICollisions_ProEdition.zip` from the [latest release](https://github.com/DTM-Mods/FS25_NoAICollisions_ProEdition/releases/latest) and put it in `Documents/My Games/FarmingSimulator2025/mods`, without unzipping or renaming it. In multiplayer, the server and every player need the same version.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/license.jpg" alt="License" width="100%">
 </p>
 
 MIT, see `LICENSE`.
+
+<details>
+<summary><b>For developers</b>: files, building and tests</summary>
+
+### Building the zip yourself
+
+Zip the CONTENTS of this folder (modDesc.xml at the top of the zip, forward-slash paths) as
+`FS25_NoAICollisions_ProEdition.zip` and put it in the FS25 `mods` folder. Don't rename the zip.
+
+### Files
+
+- `modDesc.xml` - mod description
+- `scripts/NoAICollisions.lua` - traffic pass-through and helper unblocking
+- `icon_NoAICollisions.dds` - shop icon
+
+</details>
 
 ---
 
