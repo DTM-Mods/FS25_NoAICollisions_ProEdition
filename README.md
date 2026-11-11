@@ -36,16 +36,22 @@ collisions with it and carry on along their course, forwards or reversing. Two h
 drive through each other, but a helper queueing with a gap is never pushed into. Collisions come back as soon
 as the obstruction is cleared. Works in single player and multiplayer, no settings needed.
 
-## Files
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/files.jpg" alt="Files" width="100%">
+</p>
 - `modDesc.xml` - mod description
 - `scripts/NoAICollisions.lua` - traffic pass-through and helper unblocking
 - `icon_NoAICollisions.dds` - shop icon
 
-## Install
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/installation.jpg" alt="Installation" width="100%">
+</p>
 Zip the CONTENTS of this folder (modDesc.xml at the top of the zip, forward-slash paths) as
 `FS25_NoAICollisions_ProEdition.zip` and put it in the FS25 `mods` folder. Don't rename the zip.
 
-## License
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/license.jpg" alt="License" width="100%">
+</p>
 MIT, see `LICENSE`.
 
 ---
