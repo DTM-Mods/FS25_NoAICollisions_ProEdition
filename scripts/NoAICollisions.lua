@@ -57,6 +57,19 @@
 --   * Collisions are switched back on once the helper and the obstruction are
 --     clear of each other.
 --
+-- Contact check (AutoDrive helpers, moving or stopped):
+--   * Every scan, a box CONTACT_MARGIN around each unit of the helper looks for
+--     vehicles touching it on any side. A touching vehicle gets pair collision
+--     (wheels included) switched off with the helper until they are
+--     PAIR_CLEAR_GAP apart, so a helper can never push a machine off its line
+--     (an unloader steering into the side of a harvester). Its own load never
+--     counts, and a helper queued behind another on the way to the same pin is
+--     left alone.
+--   * Trees (any helper: AutoDrive, Courseplay, base game): a tree within
+--     TREE_MARGIN of the helper's body makes it pass through world objects
+--     straight away, without waiting to be stopped first. Same restore as
+--     above: solid again once nothing is in its path or inside it.
+--
 -- Multiplayer: collision filters are local engine state, so every peer (server
 -- and clients) runs the same traffic logic on its own copy of the traffic. No
 -- network events are needed. Helpers only drive on the server, so the helper
@@ -78,6 +91,7 @@ NoAICollisions.PROBE_LENGTH = 15     -- m checked in front of (or behind, when r
 NoAICollisions.SEEN_TIMEOUT = 1000   -- ms a probe hit stays valid
 NoAICollisions.PAIR_CLEAR_GAP = 2    -- m extra gap required before a helper and a game vehicle collide again
 NoAICollisions.CONTACT_MARGIN = 0.3  -- m around a helper's body that counts as touching (AutoDrive queues at 2 m or more)
+NoAICollisions.TREE_MARGIN = 0.5     -- m around a helper's body where a tree counts as one it is driving into
 NoAICollisions.QUEUE_ANGLE_COS = math.cos(math.rad(45)) -- a helper ahead counts as a queue only when it faces within 45 deg of our driving direction
 NoAICollisions.WORLD_PROBE_LIFT = 0.5 -- m above each unit's root where the world object checks start, so the ground under it doesn't count
 NoAICollisions.STUCK_TIME = 2000     -- ms an AutoDrive helper that wants to drive may stand still before it counts as stopped
@@ -130,6 +144,7 @@ function NoAICollisions:loadMap(filename)
             end
         end
     end
+    self.treeFlag = CollisionFlag.TREE
     self.canIgnoreWorld = self.worldFlags > 0 and getHasClassId ~= nil and ClassIds ~= nil and getHasTrigger ~= nil
     self.canDisablePairs = setPairCollision ~= nil
     if not self.canDisablePairs then
@@ -334,6 +349,7 @@ function NoAICollisions:update(dt)
     -- results gathered since the previous one.
     self:updateTrackedShapes()
     self:updateHelpers()
+    self:updateContacts()
 
     for _, vehicle in pairs(self:getVehicles()) do
         if isVehicleActive(vehicle) then
@@ -1009,6 +1025,91 @@ function NoAICollisions:getPathStatus(state)
     return hasObstacle, allGhosted, hasWaitingHelper
 end
 
+-- Switches off collision between the helper and one game vehicle (wheels of
+-- both included), and between that vehicle and everyone already in the jam
+function NoAICollisions:ghostVehicle(state, rootVehicle)
+    for other, _ in pairs(state.ghostedVehicles) do
+        self:disableGroupPair(state, rootVehicle, other)
+    end
+    state.ghostedVehicles[rootVehicle] = self:disablePairCollision(state.rootVehicle, rootVehicle)
+    -- Its wheels too, or they stay solid against the helper's body
+    if self.canIgnoreWheels and state.otherWheels[rootVehicle] == nil then
+        state.otherWheels[rootVehicle] = self:disableWheelCollision(rootVehicle, "noAICollisionsVehicleCount")
+    end
+    if self.canIgnoreWheels and state.ghostedWheels == nil then
+        state.ghostedWheels = self:disableWheelCollision(state.rootVehicle, "noAICollisionsVehicleCount")
+    end
+end
+
+-- Box around each unit of the helper, CONTACT_MARGIN out on every side:
+-- any vehicle in it is touching the helper (results land in state.contacts)
+function NoAICollisions:probeContacts(state)
+    state.cargo, state.cargoNodes = self:getCargo(state.rootVehicle)
+    for _, vehicle in ipairs(getChildVehicles(state.rootVehicle)) do
+        local node = vehicle.components ~= nil and vehicle.components[1] ~= nil and vehicle.components[1].node or nil
+        if node ~= nil and entityExists(node) and vehicle.size ~= nil then
+            local size = vehicle.size
+            local x, y, z = localToWorld(node, size.widthOffset or 0, 1.5, size.lengthOffset or 0)
+            local rx, ry, rz = getWorldRotation(node)
+            overlapBox(x, y, z, rx, ry, rz, (size.width or 3) * 0.5 + self.CONTACT_MARGIN, 1.5,
+                (size.length or 4) * 0.5 + self.CONTACT_MARGIN,
+                "onContactHit", state, self.vehicleFlag, true, true, true, true)
+        end
+    end
+end
+
+local function getVehicleName(vehicle)
+    if vehicle.getFullName ~= nil then
+        return vehicle:getFullName()
+    end
+    return tostring(vehicle.configFileName or vehicle)
+end
+
+-- Contact check: an AutoDrive helper touching another vehicle on any side,
+-- moving or stopped, passes through it until they are PAIR_CLEAR_GAP apart,
+-- so it can never push a machine off its line. Results from the previous
+-- scan are used, then a new check is sent.
+function NoAICollisions:updateContacts()
+    if g_server == nil then
+        return
+    end
+    for _, vehicle in pairs(self:getVehicles()) do
+        local ad = vehicle.ad
+        local isRoot = not vehicle.isDeleted and (vehicle.rootVehicle == nil or vehicle.rootVehicle == vehicle)
+
+        -- Trees: any helper (AutoDrive, Courseplay, base game) touching a tree
+        -- drives straight through it, moving or stopped
+        if isRoot and self.canIgnoreWorld and self.treeFlag ~= nil and isHelperActive(vehicle) then
+            local state = self:getAIState(vehicle)
+            if state.treeContact ~= nil and g_time - state.treeContact <= self.SEEN_TIMEOUT
+                and state.ghostedWorld == nil then
+                self:ghostWorld(state)
+                Logging.info("[%s] %s driving into a tree, passing through it.", self.MOD_NAME, getVehicleName(vehicle))
+            end
+            state.cargo, state.cargoNodes = self:getCargo(vehicle)
+            state.lastContactScan = g_time
+            self:probeTrees(state)
+        end
+
+        if isRoot and self.canDisablePairs and ad ~= nil and ad.stateModule ~= nil and ad.stateModule:isActive() then
+            local state = self:getAIState(vehicle)
+            for other, lastSeen in pairs(state.contacts) do
+                if other.isDeleted or g_time - lastSeen > self.SEEN_TIMEOUT then
+                    state.contacts[other] = nil
+                elseif state.ghostedVehicles[other] == nil
+                    -- Waiting its turn behind a helper going to the same pin: leave the queue alone
+                    and not (isHelperActive(other) and self:isBehindOnSameDestination(vehicle, other)) then
+                    self:ghostVehicle(state, other)
+                    Logging.info("[%s] %s touching %s, passing through until %d m apart.", self.MOD_NAME,
+                        getVehicleName(vehicle), getVehicleName(other), self.PAIR_CLEAR_GAP)
+                end
+            end
+            state.lastContactScan = g_time
+            self:probeContacts(state)
+        end
+    end
+end
+
 -- Switches off collisions between the helper and everything in its path.
 -- Traffic cars are turned solid again by the regular traffic logic, game
 -- vehicles by updateHelpers once they are clear of the helper.
@@ -1029,29 +1130,53 @@ function NoAICollisions:ghostPath(state)
         for rootVehicle, lastSeen in pairs(state.vehicles) do
             if g_time - lastSeen <= self.SEEN_TIMEOUT and not rootVehicle.isDeleted
                 and state.ghostedVehicles[rootVehicle] == nil then
-                -- Everyone already in the jam goes collision free with the newcomer too
-                for other, _ in pairs(state.ghostedVehicles) do
-                    self:disableGroupPair(state, rootVehicle, other)
-                end
-                state.ghostedVehicles[rootVehicle] = self:disablePairCollision(state.rootVehicle, rootVehicle)
-                -- Its wheels too, or they stay solid against the helper's body
-                if self.canIgnoreWheels and state.otherWheels[rootVehicle] == nil then
-                    state.otherWheels[rootVehicle] = self:disableWheelCollision(rootVehicle, "noAICollisionsVehicleCount")
-                end
+                self:ghostVehicle(state, rootVehicle)
             end
-        end
-        if self.canIgnoreWheels and state.ghostedWheels == nil and next(state.ghostedVehicles) ~= nil then
-            state.ghostedWheels = self:disableWheelCollision(state.rootVehicle, "noAICollisionsVehicleCount")
         end
     end
 
-    if self.canIgnoreWorld and state.ghostedWorld == nil and state.world ~= nil
-        and g_time - state.world <= self.SEEN_TIMEOUT then
-        state.ghostedWorld = self:disableWorldCollision(state.rootVehicle)
-        state.worldContact = nil
-        state.worldChecks = 0
-        if self.canIgnoreWheels then
-            state.ghostedWorldWheels = self:disableWheelCollision(state.rootVehicle, "noAICollisionsWorldCount")
+    if state.world ~= nil and g_time - state.world <= self.SEEN_TIMEOUT then
+        self:ghostWorld(state)
+    end
+end
+
+-- The helper passes through world objects (trees, buildings, static and
+-- dynamic objects) until restoreClearedWorld finds it clear
+function NoAICollisions:ghostWorld(state)
+    if not self.canIgnoreWorld or state.ghostedWorld ~= nil then
+        return
+    end
+    state.ghostedWorld = self:disableWorldCollision(state.rootVehicle)
+    state.worldContact = nil
+    state.worldChecks = 0
+    if self.canIgnoreWheels then
+        state.ghostedWorldWheels = self:disableWheelCollision(state.rootVehicle, "noAICollisionsWorldCount")
+    end
+end
+
+function AIState:onTreeContact(node)
+    if node ~= nil and node ~= 0 and entityExists(node) and not getHasTrigger(node) then
+        local object = g_currentMission:getNodeObject(node)
+        if not self:isCargo(node, object) and (object == nil or object.rootVehicle == nil) then
+            self.treeContact = g_time
+        end
+    end
+    return true
+end
+
+-- Box around each unit of the helper (above the ground), TREE_MARGIN out on
+-- every side: a tree in it is one the helper is driving into
+function NoAICollisions:probeTrees(state)
+    local lift = self.WORLD_PROBE_LIFT
+    for _, vehicle in ipairs(getChildVehicles(state.rootVehicle)) do
+        local node = vehicle.components ~= nil and vehicle.components[1] ~= nil and vehicle.components[1].node or nil
+        if node ~= nil and entityExists(node) and vehicle.size ~= nil then
+            local size = vehicle.size
+            local x, y, z = localToWorld(node, size.widthOffset or 0, 1.5 + lift * 0.5, size.lengthOffset or 0)
+            local rx, ry, rz = getWorldRotation(node)
+            overlapBox(x, y, z, rx, ry, rz, (size.width or 3) * 0.5 + self.TREE_MARGIN, 1.5 - lift * 0.5,
+                (size.length or 4) * 0.5 + self.TREE_MARGIN,
+                "onTreeContact", state, self.treeFlag, true, true, true, true)
         end
     end
 end
@@ -1231,7 +1356,8 @@ function NoAICollisions:updateHelpers()
     for rootVehicle, state in pairs(self.aiStates) do
         self:restoreClearedVehicles(state)
         self:restoreClearedWorld(state)
-        if (rootVehicle.isDeleted or g_time - state.lastCall > 10000) and next(state.ghostedVehicles) == nil
+        local lastUsed = math.max(state.lastCall, state.lastContactScan or 0)
+        if (rootVehicle.isDeleted or g_time - lastUsed > 10000) and next(state.ghostedVehicles) == nil
             and next(state.groupPairs) == nil and next(state.otherWheels) == nil and state.ghostedWorld == nil then
             self.aiStates[rootVehicle] = nil
         end
