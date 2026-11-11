@@ -1,10 +1,24 @@
+# --- DTM standard (the same in every DTM-Mods repository) ---
+# builds and downloads
+dist/
 *.zip
-
-# Work files kept local, not in git (PropaineX rule 2026-11-11)
+# Python
+__pycache__/
+*.pyc
+/venv/
+# logs, backups, editor and system files
+*.log
+*.bak
+*backup*/
+*Backup*/
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+# Blender and other 3D work files: big, and the game doesn't load them (keep them outside git)
 *.blend
 *.blend[0-9]
 *.obj
 *.mtl
-*.bak
-*backup*/
-*Backup*/
+# --- end of the DTM standard; this repository's own rules follow ---
