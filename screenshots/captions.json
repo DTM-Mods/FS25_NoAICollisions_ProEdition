@@ -1,0 +1,12 @@
+{
+  "2.jpg": {
+    "title": "Never stuck in traffic",
+    "text": "A traffic car that stands still near your vehicle for a couple of seconds becomes pass-through.",
+    "at": "bottom"
+  },
+  "3.jpg": {
+    "title": "Helpers keep going",
+    "text": "Helpers stopped by an obstruction for 2 seconds drive through it and carry on along their course.",
+    "at": "bottom"
+  }
+}
