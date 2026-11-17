@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="116">
     <author>DTM Mods, PropaineX</author>
-    <version>1.5.0.3</version>
+    <version>1.5.0.4</version>
 
     <title>
         <en>No AI Collisions Pro Edition</en>
@@ -24,8 +24,8 @@ Never get stuck in AI traffic again!
 - Collisions are turned back on as soon as the helper has cleared the obstruction.
 - Works for you and your helpers, in single player and multiplayer.
 
-Changelog 1.5.0.3:
-- Updated for the current game version (modDesc version 116).]]></en>
+Changelog 1.5.0.4:
+- Description in GIANTS' ModHub layout (category, price, upkeep or hotkeys at the top).]]></en>
         <de><![CDATA[Beschreibung: Stillstehende KI-Verkehrsautos werden durchlässig, sodass du nie hinter ihnen feststeckst, und Helfer fahren nach 2 Sekunden durch das, was sie blockiert, statt ewig zu warten.
 Tastenkombinationen: keine, keine Einstellungen nötig - einfach die Mod aktivieren.
 GitHub: https://github.com/DTM-Mods/FS25_NoAICollisions_ProEdition
@@ -42,8 +42,8 @@ Nie wieder im KI-Verkehr steckenbleiben!
 - Die Kollisionen werden wieder eingeschaltet, sobald der Helfer das Hindernis hinter sich gelassen hat.
 - Funktioniert für dich und deine Helfer, im Einzelspieler und im Mehrspieler.
 
-Changelog 1.5.0.3:
-- An die aktuelle Spielversion angepasst (modDesc-Version 116).]]></de>
+Changelog 1.5.0.4:
+- Beschreibung im ModHub-Aufbau von GIANTS (Kategorie, Preis, Unterhalt bzw. Tasten oben).]]></de>
     </description>
 
     <iconFilename>icon_NoAICollisions.dds</iconFilename>
