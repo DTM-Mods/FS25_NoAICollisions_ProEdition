@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
-<modDesc descVersion="115">
+<modDesc descVersion="116">
     <author>DTM Mods, PropaineX</author>
-    <version>1.5.0.2</version>
+    <version>1.5.0.3</version>
 
     <title>
         <en>No AI Collisions Pro Edition</en>
@@ -21,8 +21,8 @@
 - Works for you and your helpers, in single player and multiplayer.
 - No settings needed - just activate the mod.
 
-Changelog 1.5.0.2:
-- Meets the GIANTS ModHub checks (TestRunner): icon and modDesc brought up to date, German description added.]]></en>
+Changelog 1.5.0.3:
+- Updated for the current game version (modDesc version 116).]]></en>
         <de><![CDATA[Nie wieder im KI-Verkehr steckenbleiben!
 
 - Der KI-Verkehr verhält sich genau wie im Grundspiel: Er hält an und wartet auf dich, und fahrende Autos sind fest.
@@ -36,8 +36,8 @@ Changelog 1.5.0.2:
 - Funktioniert für dich und deine Helfer, im Einzelspieler und im Mehrspieler.
 - Keine Einstellungen nötig - einfach die Mod aktivieren.
 
-Changelog 1.5.0.2:
-- Erfüllt die GIANTS-ModHub-Prüfungen (TestRunner): Icon und modDesc aktualisiert, deutsche Beschreibung hinzugefügt.]]></de>
+Changelog 1.5.0.3:
+- An die aktuelle Spielversion angepasst (modDesc-Version 116).]]></de>
     </description>
 
     <iconFilename>icon_NoAICollisions.dds</iconFilename>
