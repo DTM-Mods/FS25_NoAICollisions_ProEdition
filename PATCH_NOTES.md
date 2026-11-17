@@ -1,5 +1,8 @@
 # No AI Collisions Pro Edition - Patch Notes
 
+## 1.5.0.2
+- Meets the GIANTS ModHub checks (TestRunner): icon and modDesc brought up to date, German description added.
+
 ## 1.5.0.1
 
 - The author now shows as **DTM Mods, PropaineX** in the mod list.

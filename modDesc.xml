@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
-<modDesc descVersion="92">
+<modDesc descVersion="115">
     <author>DTM Mods, PropaineX</author>
-    <version>1.5.0.1</version>
+    <version>1.5.0.2</version>
 
     <title>
         <en>No AI Collisions Pro Edition</en>
@@ -19,7 +19,25 @@
 - A helper's load drives through along with it: pallets, bales and logs on a truck or trailer (strapped down, loaded by an autoloader or just standing in it) never push the other vehicle.
 - Collisions are turned back on as soon as the helper has cleared the obstruction.
 - Works for you and your helpers, in single player and multiplayer.
-- No settings needed - just activate the mod.]]></en>
+- No settings needed - just activate the mod.
+
+Changelog 1.5.0.2:
+- Meets the GIANTS ModHub checks (TestRunner): icon and modDesc brought up to date, German description added.]]></en>
+        <de><![CDATA[Nie wieder im KI-Verkehr steckenbleiben!
+
+- Der KI-Verkehr verhält sich genau wie im Grundspiel: Er hält an und wartet auf dich, und fahrende Autos sind fest.
+- Jedes Verkehrsauto, das ein paar Sekunden lang in der Nähe eines deiner Fahrzeuge stillsteht, wird durchlässig, sodass du einfach hindurchfahren kannst, statt festzustecken.
+- Das Auto wird wieder fest, sobald es weiterfährt und von deinen Fahrzeugen weg ist.
+- Helfer (Grundspiel, AutoDrive und Courseplay), die 2 Sekunden lang von einem Hindernis aufgehalten werden, schalten die Kollision damit ab und fahren ihren Kurs weiter, vorwärts oder rückwärts - egal ob es ein KI-Verkehrsauto, ein abgestelltes Fahrzeug oder dein eigenes Fahrzeug ist.
+- Zwei Helfer, die zusammenstoßen oder sich gegenseitig blockieren, fahren nach 2 Sekunden durcheinander hindurch, auch wenn nur einer von beiden den anderen sehen kann. Ein Helfer, der mit Abstand wartet, bis er an der Reihe ist, wie LKW in der Schlange an einer Abladestelle, wird nie angefahren. Ein Helfer, der dem anderen zugewandt ist oder seinen Weg kreuzt, wie ein Überladewagen, der auf dem Feld wartet, wird durchfahren.
+- AutoDrive-Helfer mit demselben Ziel warten in einer Reihe, bis sie an der Reihe sind, und fahren nie ineinander: Der weiter vom Ziel entfernte wartet, bis der vordere weitergefahren ist.
+- Die Ladung eines Helfers fährt mit ihm hindurch: Paletten, Ballen und Stämme auf einem LKW oder Anhänger (festgezurrt, von einem Autoloader geladen oder einfach darauf stehend) schieben das andere Fahrzeug nie weg.
+- Die Kollisionen werden wieder eingeschaltet, sobald der Helfer das Hindernis hinter sich gelassen hat.
+- Funktioniert für dich und deine Helfer, im Einzelspieler und im Mehrspieler.
+- Keine Einstellungen nötig - einfach die Mod aktivieren.
+
+Changelog 1.5.0.2:
+- Erfüllt die GIANTS-ModHub-Prüfungen (TestRunner): Icon und modDesc aktualisiert, deutsche Beschreibung hinzugefügt.]]></de>
     </description>
 
     <iconFilename>icon_NoAICollisions.dds</iconFilename>
