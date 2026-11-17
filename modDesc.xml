@@ -8,7 +8,11 @@
     </title>
 
     <description>
-        <en><![CDATA[Never get stuck in AI traffic again!
+        <en><![CDATA[Description: AI traffic cars that stand still become pass-through so you never get stuck behind them, and helpers drive through whatever blocks them after 2 seconds instead of waiting forever.
+Hotkeys: none, no settings needed - just activate the mod.
+GitHub: https://github.com/DTM-Mods/FS25_NoAICollisions_ProEdition
+
+Never get stuck in AI traffic again!
 
 - AI traffic behaves just like in the base game: it stops and waits for you, and moving cars are solid.
 - Any traffic car that stands still near one of your vehicles for a couple of seconds becomes pass-through, so you can drive straight through it instead of getting jammed up.
@@ -19,11 +23,14 @@
 - A helper's load drives through along with it: pallets, bales and logs on a truck or trailer (strapped down, loaded by an autoloader or just standing in it) never push the other vehicle.
 - Collisions are turned back on as soon as the helper has cleared the obstruction.
 - Works for you and your helpers, in single player and multiplayer.
-- No settings needed - just activate the mod.
 
 Changelog 1.5.0.3:
 - Updated for the current game version (modDesc version 116).]]></en>
-        <de><![CDATA[Nie wieder im KI-Verkehr steckenbleiben!
+        <de><![CDATA[Beschreibung: Stillstehende KI-Verkehrsautos werden durchlässig, sodass du nie hinter ihnen feststeckst, und Helfer fahren nach 2 Sekunden durch das, was sie blockiert, statt ewig zu warten.
+Tastenkombinationen: keine, keine Einstellungen nötig - einfach die Mod aktivieren.
+GitHub: https://github.com/DTM-Mods/FS25_NoAICollisions_ProEdition
+
+Nie wieder im KI-Verkehr steckenbleiben!
 
 - Der KI-Verkehr verhält sich genau wie im Grundspiel: Er hält an und wartet auf dich, und fahrende Autos sind fest.
 - Jedes Verkehrsauto, das ein paar Sekunden lang in der Nähe eines deiner Fahrzeuge stillsteht, wird durchlässig, sodass du einfach hindurchfahren kannst, statt festzustecken.
@@ -34,7 +41,6 @@ Changelog 1.5.0.3:
 - Die Ladung eines Helfers fährt mit ihm hindurch: Paletten, Ballen und Stämme auf einem LKW oder Anhänger (festgezurrt, von einem Autoloader geladen oder einfach darauf stehend) schieben das andere Fahrzeug nie weg.
 - Die Kollisionen werden wieder eingeschaltet, sobald der Helfer das Hindernis hinter sich gelassen hat.
 - Funktioniert für dich und deine Helfer, im Einzelspieler und im Mehrspieler.
-- Keine Einstellungen nötig - einfach die Mod aktivieren.
 
 Changelog 1.5.0.3:
 - An die aktuelle Spielversion angepasst (modDesc-Version 116).]]></de>
