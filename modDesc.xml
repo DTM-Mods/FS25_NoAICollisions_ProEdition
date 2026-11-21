@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="116">
     <author>DTM Mods, PropaineX</author>
-    <version>1.5.0.4</version>
+    <version>1.5.0.5</version>
 
     <title>
         <en>No AI Collisions Pro Edition</en>
@@ -22,10 +22,11 @@ Never get stuck in AI traffic again!
 - AutoDrive helpers going to the same destination wait in line for their turn and never drive into each other: the one further from the destination waits until the one ahead has moved on.
 - A helper's load drives through along with it: pallets, bales and logs on a truck or trailer (strapped down, loaded by an autoloader or just standing in it) never push the other vehicle.
 - Collisions are turned back on as soon as the helper has cleared the obstruction.
+- With AutoDrive Overdrive, "Drive through obstructions (No AI Collisions)" in a vehicle's AutoDrive settings decides it per vehicle: set to No, that AutoDrive helper waits like normal AutoDrive.
 - Works for you and your helpers, in single player and multiplayer.
 
-Changelog 1.5.0.4:
-- Description in GIANTS' ModHub layout (category, price, upkeep or hotkeys at the top).]]></en>
+Changelog 1.5.0.5:
+- AutoDrive Overdrive's "Drive through obstructions" vehicle setting is respected: set to No, the AutoDrive helper is never driven through obstructions.]]></en>
         <de><![CDATA[Beschreibung: Stillstehende KI-Verkehrsautos werden durchlässig, sodass du nie hinter ihnen feststeckst, und Helfer fahren nach 2 Sekunden durch das, was sie blockiert, statt ewig zu warten.
 Tastenkombinationen: keine, keine Einstellungen nötig - einfach die Mod aktivieren.
 GitHub: https://github.com/DTM-Mods/FS25_NoAICollisions_ProEdition
@@ -40,10 +41,11 @@ Nie wieder im KI-Verkehr steckenbleiben!
 - AutoDrive-Helfer mit demselben Ziel warten in einer Reihe, bis sie an der Reihe sind, und fahren nie ineinander: Der weiter vom Ziel entfernte wartet, bis der vordere weitergefahren ist.
 - Die Ladung eines Helfers fährt mit ihm hindurch: Paletten, Ballen und Stämme auf einem LKW oder Anhänger (festgezurrt, von einem Autoloader geladen oder einfach darauf stehend) schieben das andere Fahrzeug nie weg.
 - Die Kollisionen werden wieder eingeschaltet, sobald der Helfer das Hindernis hinter sich gelassen hat.
+- Mit AutoDrive Overdrive entscheidet "Durch Hindernisse fahren (No AI Collisions)" in den AutoDrive-Einstellungen eines Fahrzeugs für jedes Fahrzeug einzeln: Auf Nein wartet dieser AutoDrive-Helfer wie sonst bei AutoDrive.
 - Funktioniert für dich und deine Helfer, im Einzelspieler und im Mehrspieler.
 
-Changelog 1.5.0.4:
-- Beschreibung im ModHub-Aufbau von GIANTS (Kategorie, Preis, Unterhalt bzw. Tasten oben).]]></de>
+Changelog 1.5.0.5:
+- Die Fahrzeugeinstellung "Durch Hindernisse fahren" von AutoDrive Overdrive wird beachtet: Auf Nein wird der AutoDrive-Helfer nie durch Hindernisse gefahren.]]></de>
     </description>
 
     <iconFilename>icon_NoAICollisions.dds</iconFilename>

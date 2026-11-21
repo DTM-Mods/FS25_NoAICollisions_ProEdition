@@ -56,6 +56,13 @@
 --     helper waits as it normally would.
 --   * Collisions are switched back on once the helper and the obstruction are
 --     clear of each other.
+--   * AutoDrive Overdrive (a fork of AutoDrive) has a per-vehicle setting
+--     "Drive through obstructions (No AI Collisions)", published on the root
+--     vehicle as vehicle.ad.allowDriveThrough. While AutoDrive drives a
+--     vehicle that has it off (false), none of this happens for that helper
+--     (no drive-through, contact check or tree pass-through): it waits as
+--     AutoDrive normally does. Other helpers may still drive through it. The
+--     official AutoDrive has no such field (nil), which counts as on.
 --
 -- Contact check (AutoDrive helpers, moving or stopped):
 --   * Every scan, a box CONTACT_MARGIN around each unit of the helper looks for
@@ -102,6 +109,7 @@ NoAICollisions.tracked = {}          -- traffic shape node -> { x, y, z, stopped
 NoAICollisions.ghosted = {}          -- traffic shape node -> original collision mask
 NoAICollisions.pairGhosts = {}       -- "node1_node2" -> number of helpers that disabled this pair
 NoAICollisions.aiStates = {}         -- helper root vehicle -> AIState
+NoAICollisions.driveThroughOff = {}  -- AutoDrive helper root vehicle -> true while Overdrive's "Drive through obstructions" is off (logged once)
 NoAICollisions.scanTimer = 0
 NoAICollisions.isReady = false
 
@@ -161,6 +169,7 @@ function NoAICollisions:deleteMap()
     self.ghosted = {}
     self.pairGhosts = {}
     self.aiStates = {}
+    self.driveThroughOff = {}
     self.isReady = false
 end
 
@@ -203,15 +212,30 @@ local function getVehicleCenter(vehicle)
     return localToWorld(node, size.widthOffset or 0, 0, size.lengthOffset or 0)
 end
 
+local function isAutoDriveActive(rootVehicle)
+    local ad = rootVehicle.ad
+    return ad ~= nil and ad.stateModule ~= nil and ad.stateModule:isActive() == true
+end
+
 -- Driven by the base game helper, Courseplay (runs as an AI job) or AutoDrive
 local function isHelperActive(rootVehicle)
     if rootVehicle.getIsAIActive ~= nil and rootVehicle:getIsAIActive() then
         return true
     end
-    if rootVehicle.ad ~= nil and rootVehicle.ad.stateModule ~= nil and rootVehicle.ad.stateModule:isActive() then
+    return isAutoDriveActive(rootVehicle)
+end
+
+-- AutoDrive Overdrive's per-vehicle setting "Drive through obstructions (No AI
+-- Collisions)", published on the root vehicle as vehicle.ad.allowDriveThrough
+-- (false = the vehicle waits as AutoDrive normally does). It is an AutoDrive
+-- setting, so it only applies while AutoDrive drives the vehicle. The
+-- official AutoDrive has no such field (nil): drive through as always.
+local function isDriveThroughAllowed(rootVehicle)
+    local ad = rootVehicle.ad
+    if ad == nil or ad.allowDriveThrough ~= false then
         return true
     end
-    return false
+    return not isAutoDriveActive(rootVehicle)
 end
 
 -- A vehicle is "active" when someone is driving it, a helper is driving it, or
@@ -1076,6 +1100,11 @@ function NoAICollisions:updateContacts()
     for _, vehicle in pairs(self:getVehicles()) do
         local ad = vehicle.ad
         local isRoot = not vehicle.isDeleted and (vehicle.rootVehicle == nil or vehicle.rootVehicle == vehicle)
+        -- AutoDrive Overdrive's "Drive through obstructions" switched off: it
+        -- waits like normal AutoDrive, no contact or tree pass-through either
+        if isRoot and not self:checkDriveThroughAllowed(vehicle) then
+            isRoot = false
+        end
 
         -- Trees: any helper (AutoDrive, Courseplay, base game) touching a tree
         -- drives straight through it, moving or stopped
@@ -1191,6 +1220,20 @@ function NoAICollisions:getAIState(vehicle)
     return state
 end
 
+-- isDriveThroughAllowed, logging once each time an AutoDrive helper starts
+-- driving with Overdrive's "Drive through obstructions" switched off
+function NoAICollisions:checkDriveThroughAllowed(rootVehicle)
+    local allowed = isDriveThroughAllowed(rootVehicle)
+    if allowed then
+        self.driveThroughOff[rootVehicle] = nil
+    elseif not self.driveThroughOff[rootVehicle] then
+        self.driveThroughOff[rootVehicle] = true
+        Logging.info("[%s] %s: AutoDrive's \"Drive through obstructions\" is off, it waits like normal AutoDrive.",
+            self.MOD_NAME, getVehicleName(rootVehicle))
+    end
+    return allowed
+end
+
 -- Called by the helper hooks every time the helper decides whether to stop.
 -- Returns true while the helper should ignore the stop and drive on.
 function NoAICollisions:shouldDriveOn(vehicle, isBlocked, moveForwards)
@@ -1206,6 +1249,14 @@ function NoAICollisions:shouldDriveOn(vehicle, isBlocked, moveForwards)
     end
     state.lastCall = g_time
     state.moveForwards = moveForwards ~= false
+
+    -- AutoDrive Overdrive's "Drive through obstructions" switched off for this
+    -- vehicle: it stops for whatever its sensors see, as AutoDrive does
+    if not self:checkDriveThroughAllowed(state.rootVehicle) then
+        state.blockedSince = nil
+        state.isPushing = false
+        return false
+    end
 
     if not isBlocked then
         -- AutoDrive may run more than one check per frame; a block reported
@@ -1362,6 +1413,11 @@ function NoAICollisions:updateHelpers()
             self.aiStates[rootVehicle] = nil
         end
     end
+    for rootVehicle in pairs(self.driveThroughOff) do
+        if rootVehicle.isDeleted then
+            self.driveThroughOff[rootVehicle] = nil
+        end
+    end
 end
 
 -- Every mod runs in its own environment, reachable as a global named after
@@ -1453,7 +1509,7 @@ function NoAICollisions:installHelperHooks()
             end
         end
         hooked = hooked + 1
-        Logging.info("[%s] AutoDrive helpers will drive through obstructions after 2 seconds.", self.MOD_NAME)
+        Logging.info("[%s] AutoDrive helpers will drive through obstructions after 2 seconds (unless \"Drive through obstructions\" is off in AutoDrive Overdrive's vehicle settings).", self.MOD_NAME)
     end
 
     -- Courseplay: the proximity controller stops or slows the helper for anything in front of it

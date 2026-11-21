@@ -34,7 +34,9 @@ becomes pass-through, and turns solid again once it drives off and is clear of y
 Helpers (base game, AutoDrive and Courseplay) that are stopped by an obstruction for 2 seconds turn off
 collisions with it and carry on along their course, forwards or reversing. Two helpers that block each other
 drive through each other, but a helper queueing with a gap is never pushed into. Collisions come back as soon
-as the obstruction is cleared. Works in single player and multiplayer, no settings needed.
+as the obstruction is cleared. Works in single player and multiplayer, no settings needed. With AutoDrive
+Overdrive, its per-vehicle setting "Drive through obstructions (No AI Collisions)" can switch this off for a vehicle:
+set to No, that AutoDrive helper waits like normal AutoDrive.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/DTM-Mods/.github/main/assets/installation.jpg" alt="Installation" width="100%">

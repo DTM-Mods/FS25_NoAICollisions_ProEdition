@@ -1,5 +1,9 @@
 # No AI Collisions Pro Edition - Patch Notes
 
+## 1.5.0.5
+
+- Respects AutoDrive Overdrive's per-vehicle setting "Drive through obstructions (No AI Collisions)" (Overdrive tab of the AutoDrive settings). Set to No, that vehicle waits like normal AutoDrive while AutoDrive drives it: no driving through obstructions, no passing through touching vehicles or trees. Other helpers can still drive through it when it blocks them. With the official AutoDrive (no such setting) nothing changes.
+
 ## 1.5.0.4
 
 - Description in GIANTS' ModHub layout (category, price, upkeep or hotkeys at the top).
